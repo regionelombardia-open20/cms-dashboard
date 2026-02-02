@@ -24,16 +24,21 @@ use \open20\cms\dashboard\Module;
  */
 
 $script = <<< JS
-$(document).ready(function(){
-    $('#toggle-image-btn').click(function(){
-        $('#image-container').toggle();
+    $(document).on('switchChange.bootstrapSwitch', '#isRolesListActiveBox', function(e){
+       console.log($(this).is(':checked'));
+       if($(this).is(':checked')) {
+           $('#roles_id').prop('disabled', false);
+       }
+       else {
+           $('#roles_id').prop('disabled', true);
+       }
     });
-});
 JS;
 $this->registerJs($script);
 
 if($model->isNewRecord) {
     $position = (\open20\cms\dashboard\models\CmsDashSidebarItem::getCount() + 1);
+    $model->rolesListType = 0;
 }
 else {
     $position = $model->position;
@@ -71,7 +76,7 @@ if(in_array($model->id, \open20\cms\dashboard\Module::getInstance()->sidebarItem
 
                     <?php $this->beginBlock('shortcut'); ?>
 
-                    <?= $form->field($model, 'link_shortcut')->textInput(ArrayHelper::merge(['maxlength' => true], $extrapar))->hint("<span class='mdi mdi-information'></span>Se settato, abilita una seconda azione al passaggio del mouse") ?>
+                    <?= $form->field($model, 'link_shortcut')->textInput(ArrayHelper::merge(['maxlength' => true], $extrapar))->hint("<span class='mdi mdi-information'></span>Se impostato, abilita una seconda azione al passaggio del mouse") ?>
 
                     <?= $form->field($model, 'shortcut_description')->textInput(['maxlength' => true]) ?>
 
@@ -147,6 +152,64 @@ if(in_array($model->id, \open20\cms\dashboard\Module::getInstance()->sidebarItem
 
                     <?= $form->field($model, 'icon_name')->textInput(['maxlength' => true])
                         ->hint("<span class='mdi mdi-information'></span>Seleziona il nome dell'icona da visualizzare. Si può trovare un elenco di icone più completo: <a href='https://materialdesignicons.com/' target='_blank'>https://materialdesignicons.com/</a>") ?>
+
+                    <div class="subcommunity-section m-b-30" style="padding:24px 24px 0 24px">
+                        <div class="row">
+                            <div class="col-md-10 form-group m-b-0">
+                                <?= Html::label(
+                                    Module::t('amosdashboards', 'Activate List'),
+                                    'activateListRoles',
+                                    ['class' => 'control-label m-t-10']
+                                ); ?>
+                            </div>
+                            <div class="col-md-2 text-right">
+                                <?= $form->field($model, 'isRolesListActive')->widget(\kartik\widgets\SwitchInput::classname(), [
+                                    'pluginOptions' => [
+                                        'size' => 'small',
+                                        'onColor' => 'success',
+                                        //             'offColor' => 'danger',
+                                        'onText' => Module::t('amosdashboards', 'Yes'),
+                                        'offText' => Module::t('amosdashboards', 'No'),
+                                    ],
+                                    'options' => ['id' => 'isRolesListActiveBox']
+                                ])->label(false); ?>
+                            </div>
+                            <div>
+                                <div class="col-md-12 form-group m-b-0">
+                                    <?= $form->field($model, 'roles_mm')->widget(\kartik\select2\Select2::className(), [
+                                        'data' => $roles,
+                                        'options' => [
+                                            'id' => 'roles_id',
+                                            'placeholder' => Module::t('amosdashboards', 'Seleziona Ruoli'),
+                                            'multiple' => true,
+                                            'disabled' => !$model->isRolesListActive
+                                        ]
+                                    ]); ?>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                            <div class="row">
+                                <div class="col-md-12 form-group m-b-0">
+                                    <?= Html::label(
+                                        Module::t('amosdashboards', 'Type of list'),
+                                        'activateListRoles',
+                                        ['class' => 'control-label m-t-10']
+                                    ); ?>
+                                </div>
+                                <div class="col-md-12">
+                                    <?= $form->field($model, 'rolesListType')->radioList([
+                                        '0' => 'Whitelist',
+                                        '1' => 'Blacklist'
+                                    ],
+                                        [
+                                            'options' => ['id' => 'rolesListTypeBox']
+                                        ])->label(false); ?>
+                                </div>
+                            </div>
+                            </div>
+
+                        </div>
+                    </div>
 
                     <?php $this->beginBlock('avanzate'); ?>
                         <?= $form->field($model, 'id_container')->textInput(['maxlength' => true]) ?>

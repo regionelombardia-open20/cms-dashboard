@@ -87,9 +87,18 @@ $textMenu = Module::txt('Sposta la voce di menu');
         'pluginOptions' => [
             'allowClear' => true,
             'templateResult' => new \yii\web\JsExpression("function formatState (state) {                                
-                                tree = state.text;                              
-                                newTree = $('<span>' + tree.replace(/\ \ /g, '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') + '</span>');                                  
-                                return newTree;
+                                tree = state.text;    
+                                    newTree = tree.replace(/\ \ /g, '&nbsp;&nbsp;&nbsp;');
+                                    if(newTree == tree){
+                                        return tree;
+                                    } else {
+                                    newTree = '<span class=\" d-flex \">' + tree.replace(/\ \ /g, '&nbsp;&nbsp;&nbsp;@') + '</span>';     
+                                    var lastIndex = newTree.lastIndexOf('@');
+                                    newTree = newTree.slice(0, lastIndex) + '<span class=\"mdi mdi-subdirectory-arrow-right m-r-10 \"></span>' + newTree.slice(lastIndex + 1);                           
+                                    newTree = newTree.replace(/@/g, '&nbsp;&nbsp;&nbsp;')
+                                    newTree2 = $(newTree);
+                                    return newTree2;
+                                }
                               }
                             "),
         ],
@@ -107,7 +116,7 @@ $textMenu = Module::txt('Sposta la voce di menu');
             'allowClear' => true,
             'templateResult' => new \yii\web\JsExpression("function formatState (state) {                                
                                 tree = state.text;                              
-                                newTree = $('<span>' + tree.replace(/\ \ /g, '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') + '</span>');                                  
+                                newTree = $('<span class=\" d-flex \">' + tree.replace(/\ \ /g, '&nbsp;&nbsp;&nbsp;<span class=\"mdi mdi-subdirectory-arrow-right m-r-10 \"></span>') + '</span>');                               
                                 return newTree;
                               }
                             "),

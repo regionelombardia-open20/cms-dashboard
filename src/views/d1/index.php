@@ -1,9 +1,17 @@
 <?php
 
-use open20\amos\core\utilities\CurrentUser;
-use open20\amos\core\module\BaseAmosModule;
 use open20\cms\dashboard\Module;
+use frontend\modules\activities\widget\ActivitiesWidget;
+
+$this->title = Module::txt('Dashboard');
+
 ?>
+
+<style>
+    .container-favourites.favorite-from-cms {
+        display: none !important;
+    }
+</style>
 
 <div class="dashboard-redattore">
     <div class="pt-4">
@@ -13,7 +21,7 @@ use open20\cms\dashboard\Module;
             <div class="widget-dashboard widget-azioni-rapide">
 
                 <div class="box-azione-rapida azione-crea-pagina">
-                    <a href="/dashboards/d1/create-page" title="<?= Module::t('amoscmsdashboard', 'Crea pagina') ?>">
+                    <a href="/dashboards/d1/create-page" title="<?= Module::t('amoscmsdashboard', 'Crea pagina ed inserisci contenuti redazionali') ?>">
                         <div class="icon-azione">
                             <span class="mdi mdi-file-document-plus"></span>
                         </div>
@@ -26,7 +34,7 @@ use open20\cms\dashboard\Module;
 
                 </div>
                 <div class="box-azione-rapida azione-crea-modello">
-                    <a href="/dashboards/d1/crea-modello" title="<?= Module::t('amosdashboards', 'Crea modello') ?>" >
+                    <a href="/dashboards/d1/crea-modello" title="<?= Module::t('amosdashboards', 'Crea modello di pagina') ?>" >
                         <div class="icon-azione">
                             <span class="mdi mdi-shape-plus"></span>
                         </div>
@@ -107,49 +115,22 @@ use open20\cms\dashboard\Module;
                 ?>
             </div>
         </div>
-        <div class="container-padding-xxl py-4">
-            <!-- START ATTIVITA' ASSEGNATE -->
-            <!-- <div class="widget-dashboard widget-task">
-                <div class="title-widget d-flex">
-                    <p class="h6 text-uppercase">< ?= Module::t('amoscmsdashboard', 'Attività assegnate') ?></p>
+        <?php
+        $module = Yii::$app->getModule('activities');
+        if (!is_null($module)){
+            ?>
+            <div class="container-padding-xxl py-4">
+                <!-- START ATTIVITA' ASSEGNATE -->
+                <div class="widget-dashboard widget-task">
+                    <div class="title-widget d-flex">
+                        <p class="h6 text-uppercase"><?= Module::t('amoscmsdashboard', 'Attività assegnate a me') ?></p>
+                    </div>
+                    <?php echo ActivitiesWidget::widget(['assignedToUserId' => Yii::$app->user->id]) ?>
                 </div>
-                <ul class="list-unstyled list-task-dashboard">
-                    <li>
-                        <div class="small d-flex">
-                        <div class="mr-1"><span class="badge badge-warning">OGGI</span></div>
-
-                            <a href="#dashboarModal1" class="text-black" data-toggle="modal" data-target="#dashboarModal1">
-                                <span class="text">Refuso pagina Cookie Policy</span>
-                            </a>
-                        </div>
-
-                        <div class="modal fade" tabindex="-1" role="dialog" id="dashboarModal1" aria-labelledby="dashboarModalTask1">
-                            <div class="modal-dialog" role="document">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="dashboarModalTask1">Refuso pagina Coolie Policy</h5>
-                                    </div>
-                                    <div class="modal-body">
-                                       
-                                            Si chiede di:
-                                        <ul>
-                                            <li>rumuovere il refuso della doppia "C" nel titolo</li>
-                                            <li>Inserire un paragrafo in grassetto sotto al componente Hero banner: "Lorem ipsum dolor sit amet"</li>
-                                            <li>Rumuovere immagine a fondo pagina</li>
-                                        </ul>
-                                        della pagina <a class="d-inline" href="< ?= \Yii::$app->params['linkConfigurations']['cookiePolicyLinkCommon'] ?>" title="Vai alla pagina Cookie Policy">Cookie Policy</a>.
-                                        
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button class="btn btn-secondary btn-xs" data-dismiss="modal" type="button">chiudi</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </li>
-                </ul>
-            </div> -->
-        </div>
+            </div>
+            <?php
+        }
+        ?>
         <!-- END ATTIVITA' ASSEGNATE -->
         <div class="widget-tabs container-padding-xxl pb-5">
             <ul class="nav nav-tabs nav-tabs-icon-text" id="myTab3" role="tablist">

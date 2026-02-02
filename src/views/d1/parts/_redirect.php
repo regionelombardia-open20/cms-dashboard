@@ -48,14 +48,23 @@ if(empty($model->redirect_target)){
         </div>
         <div style="<?= $hideInternal?>" id="container-internal-link" class="col-md-6">
             <?= $form->field($model, 'redirect_value_item_id')->widget(Select2::class, [
-                'data' => ArrayHelper::map($menuQuery->all(), 'nav0', 'title'),
+                'data' => ArrayHelper::map($menuQuery->all(), 'nav0', 'title', 'container'),
                 'options' => ['multiple' => false, 'placeholder' => Module::txt('Nessuna'), 'id' => 'select-redirect-page'],
                 'pluginOptions' => [
                     'allowClear' => true,
                     'templateResult' => new \yii\web\JsExpression("function formatState (state) {                                
-                                tree = state.text;                              
-                                newTree = $('<span class=\" d-flex \">' + tree.replace(/\ \ /g, '&nbsp;&nbsp;&nbsp;<span class=\"mdi mdi-subdirectory-arrow-right m-r-10 \"></span>') + '</span>');                               
-                                return newTree;
+                                tree = state.text;    
+                                    newTree = tree.replace(/\ \ /g, '&nbsp;&nbsp;&nbsp;');
+                                    if(newTree == tree){
+                                        return tree;
+                                    } else {
+                                    newTree = '<span class=\" d-flex \">' + tree.replace(/\ \ /g, '&nbsp;&nbsp;&nbsp;@') + '</span>';     
+                                    var lastIndex = newTree.lastIndexOf('@');
+                                    newTree = newTree.slice(0, lastIndex) + '<span class=\"mdi mdi-subdirectory-arrow-right m-r-10 \"></span>' + newTree.slice(lastIndex + 1);                           
+                                    newTree = newTree.replace(/@/g, '&nbsp;&nbsp;&nbsp;')
+                                    newTree2 = $(newTree);
+                                    return newTree2;
+                                }
                               }
                             "),
                 ],

@@ -10,6 +10,7 @@
 namespace open20\cms\dashboard\controllers\base;
 
 use open20\cms\dashboard\models\search\CmsDashSidebarItemSearch;
+use open20\cms\dashboard\utilities\Utility;
 use Yii;
 use open20\cms\dashboard\models\CmsDashSidebarItem;
 use open20\amos\core\controllers\CrudController;
@@ -128,6 +129,7 @@ class CmsDashSidebarItemController extends CrudController
             'fid' => NULL,
             'dataField' => NULL,
             'dataEntity' => NULL,
+            'roles' => Utility::getAllRoles()
         ]);
     }
 
@@ -182,6 +184,7 @@ class CmsDashSidebarItemController extends CrudController
             'fid' => NULL,
             'dataField' => NULL,
             'dataEntity' => NULL,
+            'roles' => Utility::getAllRoles()
         ]);
     }
 

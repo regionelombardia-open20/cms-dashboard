@@ -26,6 +26,7 @@ use luya\cms\models\NavContainer;
 use open20\amos\tag\utility\TagFreeUtility;
 use open20\amos\core\icons\AmosIcons;
 use yii\helpers\VarDumper;
+use yii\helpers\Url;
 
 /**
  * Description of DashboardController
@@ -57,7 +58,9 @@ class D1Controller extends BackendController {
                             'aggiorna-modello',
                             'luya-admin-menu',
                             'seo-url',
-                            'ajax-user-list'
+                            'ajax-user-list',
+                            'ajax-versions',
+                            'ajax-profiles',
                         ],
                         'allow' => true,
                         'roles' => ['REDATTORECMS'],
@@ -95,7 +98,8 @@ class D1Controller extends BackendController {
      * @param $container
      * @return string
      */
-    public function actionPagine($container = 'default') {
+    public function actionPagine($container = 'default', $openPage = null) {
+        $enableFilter = Module::instance()->enableContainerFilterForEditor;
         // $this->setAvailableViews([
         //     'grid' => [
         //         'name' => 'grid',
@@ -105,14 +109,14 @@ class D1Controller extends BackendController {
         // ]);
         $this->setUpLayout('list');
         $get = Yii::$app->request->get();
-        if (\Yii::$app->user->can('ADMIN')) {
+        if (\Yii::$app->user->can('CMS_PUBLISH_PAGE')) {
             //NOTHING
-        } else if (\Yii::$app->user->can('CAPOREDATTORECMS')) {
-            if (!in_array($container, Utility::MAP_PERMISSION_CONTAINER['CAPOREDATTORECMS'])) {
+        } else if ($enableFilter && \Yii::$app->user->can('CAPOREDATTORECMS')) {
+            if (!in_array($container, Module::instance()->mapPermissionContainer['CAPOREDATTORECMS'])) {
                 $container = 'default';
             }
         } else {
-            if (!in_array($container, Utility::MAP_PERMISSION_CONTAINER['REDATTORECMS'])) {
+            if ($enableFilter && !in_array($container, Module::instance()->mapPermissionContainer['REDATTORECMS'])) {
                 $container = 'default';
             }
         }
@@ -120,7 +124,7 @@ class D1Controller extends BackendController {
         $menuQuery = Utility::getAdminMenuLuyaTree($container, true);
 
         $titleSection = Module::txt('Pagine');
-        $subTitleSection = Html::tag('p', Module::txt('Qui trovi l\'elenco di tutte le pagine del sito: puoi modificarle o creane di nuove includendo i componenti redazionali con l\'editor Drag&Drop.'), ['class' => 'lead m-t-20']);
+        $subTitleSection = Html::tag('p', Module::txt('Qui trovi l\'elenco di tutte le pagine del sito: puoi modificarle o crearne di nuove includendo i componenti redazionali con l\'editor drag and drop.'), ['class' => 'lead m-t-20']);
         $labelCreate = Module::txt('Nuova');
         $titleCreate = Module::t('amospagine', 'Crea una nuova pagina nel menu "{container}"', ['container' => $container]);
         $urlCreate = '/' . Module::getModuleName() . '/d1/create-page?container=' . $container;
@@ -169,7 +173,10 @@ class D1Controller extends BackendController {
         }
         $model->container = $container;
         $this->view->params['containerFullWidth'] = true;
-        return $this->render('pages', ['dataProvider' => $menu, 'container' => $container, 'modelContainer' => $model, 'menuQuery' => $menuQuery]);
+
+        $ancestors = Utility::getPageAncestors($openPage);
+
+        return $this->render('pages', ['dataProvider' => $menu, 'container' => $container, 'modelContainer' => $model, 'menuQuery' => $menuQuery, 'ancestors' => $ancestors]);
     }
 
     /**
@@ -178,16 +185,17 @@ class D1Controller extends BackendController {
      */
     public function actionMenu($container = 'default') {
 
+        $enableFilter = Module::instance()->enableContainerFilterForEditor;
         $this->setUpLayout('list');
         $get = Yii::$app->request->get();
-        if (\Yii::$app->user->can('ADMIN')) {
+        if (\Yii::$app->user->can('CMS_PUBLISH_PAGE')) {
             //NOTHING
-        } else if (\Yii::$app->user->can('CAPOREDATTORECMS')) {
-            if (!in_array($container, Utility::MAP_PERMISSION_CONTAINER['CAPOREDATTORECMS'])) {
+        } else if ($enableFilter && \Yii::$app->user->can('CAPOREDATTORECMS')) {
+            if (!in_array($container, Module::instance()->mapPermissionContainer['CAPOREDATTORECMS'])) {
                 $container = 'default';
             }
         } else {
-            if (!in_array($container, Utility::MAP_PERMISSION_CONTAINER['REDATTORECMS'])) {
+            if ($enableFilter && !in_array($container, Module::instance()->mapPermissionContainer['REDATTORECMS'])) {
                 $container = 'default';
             }
         }
@@ -246,6 +254,9 @@ class D1Controller extends BackendController {
      * @return string|\yii\web\Response
      */
     public function actionUpdatePage($id, $url = null) {
+        /** @var Module $dashboardModule */
+        $dashboardModule = Module::instance();
+
         $this->setUpLayout('form');
         $nav = Nav::findOne($id);
         if (empty($nav)) {
@@ -259,7 +270,11 @@ class D1Controller extends BackendController {
         $modelimage = NavItem::findOne(['nav_id' => $nav->id]);
         $navItemRedirect = null;
 
-        $container = str_replace(' Container', '', (new \yii\db\Query())->from('cms_nav_container')->andWhere(['id' => $nav->nav_container_id])->select('name')->one()['name']);
+        $container = '';
+        $containerArray = (new \yii\db\Query())->from('cms_nav_container')->andWhere(['id' => $nav->nav_container_id])->select('name')->one();
+        if (!empty($containerArray['name'])) {
+            $container = str_replace(' Container', '', $containerArray['name']);
+        }
 
         $versions = Utility::getVersions($modelimage->id);
         $menuQuery = Utility::getAdminMenuLuyaTree(null, true, [], 1);
@@ -288,20 +303,20 @@ class D1Controller extends BackendController {
         // ];
         $obj = new DynamicModel([
             'title', 'alias', 'description', 'isNewRecord',
-            'lang_id', 'layout_id', 'is_draft', 'is_home', 'parent_id', 'nav_container_id',
-            'keywords', 'title_tag', 'publish_from', 'publish_till', 'tag_free', 'permission_rbac',
+            'lang_id', 'layout_id', 'is_draft', 'is_home', 'is_protected', 'is_readonly', 'parent_id', 'nav_container_id',
+            'keywords', 'title_tag', 'publish_from', 'publish_till', 'tag_free', 'permission_rbac', 'profiles_rbac',
             'type_of_page', 'redirect_type', 'redirect_value', 'redirect_target', 'redirect_value_item_id'
         ]);
-        $obj->addRule(['lang_id', 'layout_id', 'is_draft', 'is_home', 'parent_id', 'nav_container_id'], 'integer');
-        $obj->addRule(['title', 'alias', 'title_tag'], 'string', ['max' => 175]);
+        $obj->addRule(['lang_id', 'layout_id', 'is_draft', 'is_home', 'parent_id', 'nav_container_id', 'is_protected', 'is_readonly'], 'integer');
+        $obj->addRule(['title', 'alias', 'title_tag'], 'string', ['max' => $dashboardModule->defaultTitlePageLength]);
         $obj->addRule(['title', 'alias'], 'filter', ['filter' => 'trim']);
         $obj->addRule(['description', 'keywords'], 'string');
         $obj->addRule(['isNewRecord', 'tag_free'], 'safe');
-        $obj->addRule(['isNewRecord', 'permission_rbac'], 'safe');
+        $obj->addRule(['isNewRecord', 'permission_rbac', 'profiles_rbac'], 'safe');
         $obj->addRule(['title'], 'required');
         $obj->addRule(['publish_from', 'publish_till'], 'safe');
         $obj->addRule(['publish_till'], 'compare', ['compareAttribute' => 'publish_from', 'operator' => '>', 'skipOnEmpty' => true]);
-        $obj->addRule(['type_of_page', 'redirect_type', 'redirect_value', 'redirect_target', 'redirect_value_item_id'], 'safe');
+        $obj->addRule(['type_of_page', 'redirect_type', 'redirect_value', 'redirect_target', 'redirect_value_item_id', 'socialwall'], 'safe');
         $obj->addRule(['redirect_value'], 'url');
 
         $obj->setAttributeLabels([
@@ -313,12 +328,15 @@ class D1Controller extends BackendController {
             'title_tag' => Module::txt('Titolo (SEO)'),
             'publish_from' => Module::txt('Data pubblicazione'),
             'publish_till' => Module::txt('Data fine pubblicazione'),
-            'tag_free' => Module::txt('Tag'),
+            'tag_free' => Module::txt('Tag liberi'),
             'permission_rbac' => Module::txt('Permessi di accesso'),
+            'profiles_rbac' => Module::txt('Profili di accesso'),
             'redirect_target' => Module::txt('Destinazione redirezione'),
             'redirect_value' => Module::txt('Url'),
             'redirect_value_item_id' => Module::txt('Pagina'),
             'redirect_type' => Module::txt('Tipo di redirezione'),
+            'is_protected' => Module::txt('Abilita protezione'),
+            'is_readonly' => Module::txt('Visualizza sempre nel menu')
         ]);
 
         $obj->load(['DynamicModel' => $nav->attributes]);
@@ -328,7 +346,11 @@ class D1Controller extends BackendController {
 
         $obj->isNewRecord = false;
         $obj->tag_free = TagFreeUtility::get($nav->id, get_class($nav));
-        $obj->permission_rbac = $this->getRbacPermission($nav->id);
+        if (Module::instance()->enableProfile) {
+            $obj->profiles_rbac = $this->getRbacProfiles($nav->id);
+        } else {
+            $obj->permission_rbac = $this->getRbacPermission($nav->id);
+        }
         // se � di tupo redirect precompilo i dati
         if ($modelimage->nav_item_type == 3) {
             $obj->type_of_page = 2;
@@ -346,6 +368,7 @@ class D1Controller extends BackendController {
 
         $post = \Yii::$app->request->post();
         if ($post && $obj->load($post) && $modelimage->load($post) && $obj->validate()) {
+
             $modelimage->title = $obj->title;
             $modelimage->alias = $obj->alias;
             $nav->parent_nav_id = (empty($obj->parent_id) ? 0 : $obj->parent_id);
@@ -355,6 +378,9 @@ class D1Controller extends BackendController {
                 Utility::setHomepage($nav->id);
                 $nav->is_home = $obj->is_home;
             }
+            // Gestione protezione delle pagine
+            Utility::setNavProtection($nav->id, $obj->is_protected);
+            Utility::setNavReadOnly($nav->id, $obj->is_readonly);
 
             //modifica dati redirect
             if ($navItemRedirect) {
@@ -374,8 +400,25 @@ class D1Controller extends BackendController {
 
             if ($modelimage->save(false) && $nav->save()) {
                 Yii::$app->getSession()->addFlash('success', Module::txt('Pagina aggiornata con successo'));
-                self::setRbacPermission($nav->id, $obj->permission_rbac);
+                if (Module::instance()->enableProfile) {
+                    $this->setRbacProfiles($nav->id, $obj->profiles_rbac);
+                } else {
+                    $this->setRbacPermission($nav->id, $obj->permission_rbac);
+                }
+
                 TagFreeUtility::set($nav->id, get_class($nav), $obj->tag_free);
+
+                // Elastic Search
+                Utility::updateESIndex($modelimage->id);
+
+                Yii::$app->cache->flush();
+
+                if (!is_null(\Yii::$app->getModule('socialwall'))) {
+                    if (array_key_exists('Socialwall', $post)) {
+                        \open20\socialwall\utility\Social::saveSocialwallSelection('cms', $nav->id, $post['Socialwall']);
+                    }
+                }
+
                 if (!empty($url)) {
                     return $this->redirect([$url]);
                 }
@@ -383,7 +426,6 @@ class D1Controller extends BackendController {
             }
             Yii::$app->getSession()->addFlash('danger', Module::txt('Verificare i dati inseriti.'));
         }
-
         return $this->render('_page', ['model' => $obj, 'parent_id' => $nav->parent_nav_id,
                     'modelimage' => $modelimage, 'versions' => $versions, 'isUpdate' => true,
                     'menuQuery' => $menuQuery, 'nameContainer' => $container,
@@ -399,32 +441,36 @@ class D1Controller extends BackendController {
                 'url' => Yii::$app->params['platform']['frontendUrl'] . '/admin/login/login-cms-admin?redirect=/' . Module::getModuleName() . '/d1/' . $action->id
             ]);
         }
+        try {
+//            if(!empty(\Yii::$app->adminuser->id)){
+//                \Yii::$app->db->createCommand("update admin_user_login set timestamp_create = " . time() . " where user_id = " . \Yii::$app->adminuser->id)->execute();
+//            }
+        } catch (Exception $ex) {
+            
+        }
         return parent::beforeAction($action);
     }
 
     public function actionCreatePage($parent_id = null, $url = null, $container = 'default') {
+        /** @var Module $dashboardModule */
+        $dashboardModule = Module::instance();
+
         $this->setUpLayout('form');
-        if (!is_null($parent_id)) {
-            $idcontainer = Utility::getNavItem($parent_id)->one()['nav_container_id'];
-            $navContainer = NavContainer::find()->andWhere(['id' => $idcontainer])->one();
-            $container = $navContainer->name;
-        } else {
-            $navContainer = NavContainer::find()->andWhere(['alias' => $container])->one();
-        }
+        $navContainer = NavContainer::find()->andWhere(['alias' => $container])->one();
         $modelimage = new \app\modules\cms\models\NavItem();
 
         $obj = new DynamicModel([
-            'title', 'alias', 'description', 'isNewRecord', 'lang_id', 'layout_id', 'is_draft', 'tag_free', 'permission_rbac',
+            'title', 'alias', 'description', 'isNewRecord', 'lang_id', 'layout_id', 'is_draft', 'tag_free', 'permission_rbac', 'profiles_rbac',
             'parent_id', 'nav_container_id', 'keywords', 'title_tag', 'publish_from', 'publish_till', 'modello',
-            'redirect_type', 'type_of_page', 'redirect_value', 'redirect_target', 'redirect_value_item_id'
+            'redirect_type', 'type_of_page', 'redirect_value', 'redirect_target', 'redirect_value_item_id', 'is_protected', 'is_readonly'
         ]);
-        $obj->addRule(['lang_id', 'layout_id', 'is_draft', 'parent_id', 'nav_container_id', 'modello'], 'integer');
-        $obj->addRule(['title', 'alias', 'title_tag'], 'string', ['max' => 175]);
+        $obj->addRule(['lang_id', 'layout_id', 'is_draft', 'parent_id', 'nav_container_id', 'modello', 'is_protected', 'is_readonly'], 'integer');
+        $obj->addRule(['title', 'alias', 'title_tag'], 'string', ['max' => $dashboardModule->defaultTitlePageLength]);
         $obj->addRule(['title', 'alias'], 'filter', ['filter' => 'trim']);
         $obj->addRule(['description', 'keywords'], 'string');
         $obj->addRule(['isNewRecord', 'tag_free'], 'safe');
-        $obj->addRule(['isNewRecord', 'permission_rbac'], 'safe');
-        $obj->addRule(['title'], 'required');
+        $obj->addRule(['isNewRecord', 'permission_rbac', 'profiles_rbac'], 'safe');
+        $obj->addRule(['title', 'type_of_page'], 'required');
         $obj->addRule(['publish_from', 'publish_till'], 'safe');
         $obj->addRule(['type_of_page', 'redirect_type', 'redirect_value', 'redirect_target', 'redirect_value_item_id'], 'safe');
         $obj->addRule(['publish_till'], 'compare', ['compareAttribute' => 'publish_from', 'operator' => '>', 'skipOnEmpty' => true]);
@@ -440,13 +486,16 @@ class D1Controller extends BackendController {
             'publish_from' => Module::txt('Data pubblicazione'),
             'publish_till' => Module::txt('Data fine pubblicazione'),
             'modello' => Module::txt('Scegli il modello'),
-            'tag_free' => Module::txt('Tag'),
+            'tag_free' => Module::txt('Tag liberi'),
             'permission_rbac' => Module::txt('Permessi di accesso'),
+            'profiles_rbac' => Module::txt('Profili di accesso'),
             'type_of_page' => Module::txt('Tipologia di pagina'),
             'redirect_target' => Module::txt('Destinazione redirezione'),
             'redirect_value' => Module::txt('Url'),
             'redirect_value_item_id' => Module::txt('Pagina'),
             'redirect_type' => Module::txt('Tipo di redirezione'),
+            'is_protected' => Module::txt('Abilita protezione'),
+            'is_readonly' => Module::txt('Visualizza sempre nel menu')
         ]);
 
         $obj->isNewRecord = true;
@@ -478,6 +527,7 @@ class D1Controller extends BackendController {
                         $navItemNew->nav_id = $navNew->id;
                         $navItemNew->lang_id = $this->getDefaultLanguageId();
                         $navItemNew->nav_item_type = 1;
+                        $navItemNew->nav_item_type_id = 0;
                         $navItemNew->create_user_id = \Yii::$app->adminuser->getId();
                         $navItemNew->update_user_id = \Yii::$app->adminuser->getId();
                         $navItemNew->timestamp_create = time();
@@ -545,19 +595,28 @@ class D1Controller extends BackendController {
                         'value' => $obj->redirect_type == 1 ? $obj->redirect_value_item_id : $obj->redirect_value,
                         'target' => $obj->redirect_target,
                     ];
-                    $obj->layout_id = null;
+                    $obj->layout_id = Module::instance()->defaultLayoutId;
                 }
 
                 $model = $this->createPage($obj, $other);
             }
 
             if (!empty($model) && !empty($model->id)) {
+                // Gestione protezione delle pagine
+                Utility::setNavProtection($model->id, $obj->is_protected);
+                Utility::setNavReadOnly($model->id, $obj->is_protected);
+
                 if ($obj->type_of_page == 2) {
                     Yii::$app->getSession()->addFlash('success', Module::txt('Pagina di tipo "Redirect" creata con successo in stato "Bozza".'));
                     return $this->redirect(['pagine']);
                 }
                 Yii::$app->getSession()->addFlash('success', Module::txt('Pagina creata con successo in stato "Bozza": procedi ad inserire i componenti drag&drop.'));
-                self::setRbacPermission($model->id, $obj->permission_rbac);
+
+                if (Module::instance()->enableProfile) {
+                    $this->setRbacProfiles($model->id, $obj->profiles_rbac);
+                } else {
+                    $this->setRbacPermission($model->id, $obj->permission_rbac);
+                }
                 if (!empty($url)) {
                     return $this->redirect([$url]);
                 }
@@ -602,6 +661,7 @@ class D1Controller extends BackendController {
      * @throws InvalidConfigException
      */
     public function actionIndex() {
+        Url::remember();
         $this->setUpLayout('@frontend/views/layouts/main');
         $this->view->params['openSidebarRedattoreOnLoadPage'] = true;
         $this->view->params['hideBtnModifyCmsPage'] = true;
@@ -671,6 +731,10 @@ class D1Controller extends BackendController {
         $ok = Utility::publishVersion($id, $version['item_id'], $version['nav_id']);
         if ($ok) {
             Yii::$app->getSession()->addFlash('success', Module::txt('Versione pubblicata correttamente.'));
+            \Yii::$app->cache->flush();
+
+            $navItem = \open20\elasticsearch\models\NavItem::findOne(['nav_id' => $nav->id]);
+            $navItem->save();
         } else {
             Yii::$app->getSession()->addFlash('danger', Module::txt('Si è verificato un problema durante la pubblicazione, contattare l\'amministratore.'));
         }
@@ -688,6 +752,15 @@ class D1Controller extends BackendController {
         $ok = Utility::unpublishNav($nav_id);
         if ($ok) {
             Yii::$app->getSession()->addFlash('success', Module::txt('Pagina rimossa dalla pubblicazione correttamente.'));
+
+            \Yii::$app->cache->flush();
+
+            // Per l'aggiornamento degli indici di Elastic Search
+            $moduleES = Yii::$app->getModule('elasticsearch');
+            if ($moduleES) {
+                $navItem = \open20\elasticsearch\models\NavItem::findOne(['nav_id' => $nav_id]);
+                $navItem->save();
+            }
         } else {
             Yii::$app->getSession()->addFlash('danger', Module::txt('Si è verificato un problema durante la spubblicazione, contattare l\'amministratore.'));
         }
@@ -833,9 +906,9 @@ class D1Controller extends BackendController {
         return $this->redirect($url);
     }
 
-    public function actionCreateNewVersion($item_id, $page_id, $vname) {
+    public function actionCreateNewVersion($item_id, $page_id, $vname, $vvers = null) {
         $navItemModel = NavItem::findOne($item_id);
-        $fromPageModel = NavItemPage::findOne($page_id);
+        $fromPageModel = NavItemPage::findOne((empty($vvers) ? $page_id : $vvers));
 
         $layoutId = $fromPageModel->layout_id;
         $model = new NavItemPage();
@@ -1061,7 +1134,7 @@ class D1Controller extends BackendController {
         return $contents;
     }
 
-    public function actionNewSort($id, $up, $dest, $url = null) {
+    public function actionNewSort($id, $up, $dest, $url = null, $container = 'default') {
         $model = Nav::findOne($id);
 
         $modelDest = Nav::findOne($dest);
@@ -1128,7 +1201,10 @@ class D1Controller extends BackendController {
             Yii::$app->getSession()->addFlash('danger', Module::txt('Ordinamento non modificato, verificare i dati inseriti.'));
         }
         Yii::$app->getSession()->addFlash('success', Module::txt('Ordinamento modificato con successo.'));
-        return $this->redirect(['pagine']);
+
+        Yii::$app->cache->flush();
+
+        return $this->redirect(['pagine', 'container' => $container, 'openPage' => $id]);
     }
 
     public function actionLuyaAdminMenu($view = '_subpage') {
@@ -1136,25 +1212,26 @@ class D1Controller extends BackendController {
         $canPublish = Yii::$app->request->post('canPublish') ?: false;
         $lvl = Yii::$app->request->post('lvl') ?: 0;
         $container = Yii::$app->request->post('container') ?: 'default';
-        $parentNavId = \Yii::$app->request->post('expandRowKey');
-        $postSearch = \Yii::$app->request->post('postSearch');
-//        $postSearch = [];
+        $parentNavId = Yii::$app->request->post('expandRowKey');
+        $ancestors = Yii::$app->request->post('ancestors') ?: [];
+        $postSearch = Yii::$app->request->post('postSearch');
 
         $provider = Utility::getAdminMenuLuya($container, $parentNavId, false, $postSearch, false);
         $provider->pagination = false;
 
         return Yii::$app->controller->renderAjax(
-                        $view,
-                        [
-                            'dataProvider' => $provider,
-                            'container' => $container,
-                            'canPublish' => $canPublish,
-                            'lvl' => $lvl
-                        ]
+            $view,
+            [
+                'dataProvider' => $provider,
+                'container' => $container,
+                'canPublish' => $canPublish,
+                'lvl' => $lvl,
+                'ancestors' => $ancestors
+            ]
         );
     }
 
-    public function actionSetVisibilityMenu($id, $value = 0, $url = null) {
+    public function actionSetVisibilityMenu($id, $value = 0, $url = null, $container = 'default') {
         $model = Nav::findOne($id);
         if (!empty($model)) {
             $model->is_hidden = $value;
@@ -1165,7 +1242,7 @@ class D1Controller extends BackendController {
                 Yii::$app->getSession()->addFlash('danger', Module::txt('Visibilita della voce di menu non impostata. Verificare i dati della voce.'));
             }
         }
-        return $this->redirect(['pagine']);
+        return $this->redirect(['pagine', 'container' => $container, 'openPage' => $id]);
     }
 
     public function actionModelli() {
@@ -1221,6 +1298,8 @@ class D1Controller extends BackendController {
     }
 
     public function actionCreaModello($url = null) {
+        /** @var Module $dashboardModule */
+        $dashboardModule = Module::instance();
 
         $this->setUpLayout('form');
 
@@ -1232,7 +1311,7 @@ class D1Controller extends BackendController {
         $modelimage = new \app\modules\cms\models\NavItem();
         $obj->isNewRecord = true;
         $obj->addRule(['lang_id', 'layout_id', 'is_draft', 'parent_id', 'nav_container_id', 'clone'], 'integer');
-        $obj->addRule(['title', 'alias', 'title_tag'], 'string', ['max' => 175]);
+        $obj->addRule(['title', 'alias', 'title_tag'], 'string', ['max' => $dashboardModule->defaultTitlePageLength]);
         $obj->addRule(['title', 'alias'], 'filter', ['filter' => 'trim']);
         $obj->addRule(['description', 'keywords'], 'string');
         $obj->addRule(['isNewRecord'], 'safe');
@@ -1343,6 +1422,8 @@ class D1Controller extends BackendController {
     }
 
     public function actionAggiornaModello($nav_id, $url = null) {
+        /** @var Module $dashboardModule */
+        $dashboardModule = Module::instance();
 
         $this->setUpLayout('form');
         $nav = Nav::findOne($nav_id);
@@ -1354,7 +1435,7 @@ class D1Controller extends BackendController {
         $modelimage = \app\modules\cms\models\NavItem::find()->andWhere(['nav_id' => $nav_id])->one();
         $obj->isNewRecord = false;
         $obj->addRule(['lang_id', 'layout_id', 'is_draft', 'parent_id', 'nav_container_id', 'clone'], 'integer');
-        $obj->addRule(['title', 'alias', 'title_tag'], 'string', ['max' => 175]);
+        $obj->addRule(['title', 'alias', 'title_tag'], 'string', ['max' => $dashboardModule->defaultTitlePageLength]);
         $obj->addRule(['title', 'alias'], 'filter', ['filter' => 'trim']);
         $obj->addRule(['description', 'keywords'], 'string');
         $obj->addRule(['isNewRecord'], 'safe');
@@ -1433,7 +1514,75 @@ class D1Controller extends BackendController {
         return $out;
     }
 
-    public function setRbacPermission($modelid, $permissions) {
+    public function actionAjaxProfiles($q = null) {
+        \Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        $out = ['results' => ['id' => '', 'text' => '']];
+        if (!is_null($q)) {
+            $query = new Query();
+            $query->select(new Expression("id, name AS text"))
+                    ->from('user_profile_classes')
+                    ->andWhere(['like', 'name', $q])
+                    ->andWhere(['deleted_at' => null])
+                    ->limit(20);
+            $command = $query->createCommand();
+            $data = $command->queryAll();
+            $out['results'] = array_values($data);
+        }
+
+        return $out;
+    }
+
+    public function actionAjaxVersions($id) {
+        \Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        $out = ['results' => ['id' => '', 'text' => '']];
+        if (!is_null($id)) {
+            $query = new Query();
+            $query->select(new Expression("cms_nav_item_page.id AS id, REPLACE(cms_nav_item_page.version_alias, 'Initial', '". \open20\cms\dashboard\Module::txt('Versione iniziale')." ') AS text"))
+                    ->from('cms_nav_item_page')
+                    ->innerJoin('cms_nav_item', 'cms_nav_item.id = cms_nav_item_page.nav_item_id and cms_nav_item.id = ' . $id);
+            $command = $query->createCommand();
+            $data = $command->queryAll();
+            $out['results'] = array_values($data);
+        }
+
+        return $out;
+    }
+
+    public function setRbacProfiles($modelid, $profiles) {
+
+        \Yii::$app->db->createCommand()
+                ->delete('cms_page_profiles', 'nav_id=:id', [':id' => $modelid])
+                ->execute();
+
+        $nav_property = new \amos\userauth\frontend\properties\RolePermissionsProperty();
+        $admin_prop = \luya\admin\models\Property::findOne(['var_name' => $nav_property->varName()]);
+        \Yii::$app->db->createCommand()
+                ->delete('cms_nav_property', 'nav_id=:id and admin_prop_id=:prop', [':id' => $modelid, ':prop' => $admin_prop->id])
+                ->execute();
+
+        if (!empty($profiles)) {
+            $auths = \open20\amos\admin\models\UserProfileClassesAuthMm::find()
+                    ->andWhere(['in', 'user_profile_classes_id', $profiles])
+                    ->select('item_id')
+                    ->column();
+            foreach ($profiles as $pr) {
+                \Yii::$app->db
+                        ->createCommand()
+                        ->insert('cms_page_profiles', [
+                            'nav_id' => $modelid,
+                            'user_profile_classes_id' => $pr,
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s'),
+                            'created_by' => \Yii::$app->user->id,
+                            'updated_by' => \Yii::$app->user->id,
+                        ])->execute();
+            }
+            $profilesString = implode(',', $auths);
+            $this->setRbacPermission($modelid, $profilesString, $profiles);
+        }
+    }
+
+    public function setRbacPermission($modelid, $permissions, $profiles = []) {
 
         $array = [];
         if ($permissions != '') {
@@ -1441,6 +1590,15 @@ class D1Controller extends BackendController {
             foreach ($permission_array as $permission) {
                 $array[] = [
                     'value' => $permission,
+                ];
+            }
+        }
+
+        $arrayProfiles = [];
+        if(!empty($profiles)) {
+            foreach($profiles as $profile) {
+                $arrayProfiles[] = [
+                    'value' => $profile
                 ];
             }
         }
@@ -1470,6 +1628,9 @@ class D1Controller extends BackendController {
             }
         } else {
             if (!empty($array)) {
+                if(!empty($arrayProfiles)) {
+                    $array = $arrayProfiles;
+                }
                 Yii::$app->db
                         ->createCommand()
                         ->insert('cms_nav_property', [
@@ -1481,28 +1642,17 @@ class D1Controller extends BackendController {
         }
     }
 
+    public function getRbacProfiles($modelid) {
+        $allProfiles = \Yii::$app->db->createCommand("select user_profile_classes_id as id from cms_page_profiles inner join user_profile_classes "
+                        . " on user_profile_classes.id = user_profile_classes_id where nav_id = " . $modelid)->queryColumn();
+        return $allProfiles;
+    }
+
     /**
      * @param $modelid
      * return string
      */
     public function getRbacPermission($modelid) {
-        $property_list = '';
-        $propriety_id = Yii::$app->db
-                        ->createCommand('SELECT id FROM admin_property WHERE module_name =:module_name AND var_name =:var_name')
-                        ->bindValue(':module_name', 'userauthfrontend')
-                        ->bindValue(':var_name', 'rolePermissions')->queryOne();
-        $cms_nav_property = Yii::$app->db
-                        ->createCommand('SELECT * FROM cms_nav_property WHERE nav_id =:nav_id AND admin_prop_id =:admin_prop_id')
-                        ->bindValue(':nav_id', $modelid)
-                        ->bindValue(':admin_prop_id', $propriety_id['id'])->queryOne();
-        if ($cms_nav_property) {
-            $property_array = (json_decode($cms_nav_property['value']));
-            foreach ($property_array as $property) {
-                $property_list .= $property->value . ",";
-            }
-            return(rtrim($property_list, ","));
-        }
-        return $property_list;
+        return Utility::getRbacPermission($modelid);
     }
-
 }

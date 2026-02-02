@@ -20,10 +20,11 @@ $this->params['breadcrumbs'][] = $this->title;
 ?>
 <div class="cms-dash-sidebar-item-create">
     <?= $this->render('_form', [
-    'model' => $model,
-    'fid' => NULL,
-    'dataField' => NULL,
-    'dataEntity' => NULL,
+        'model' => $model,
+        'fid' => NULL,
+        'dataField' => NULL,
+        'dataEntity' => NULL,
+        'roles' => $roles
     ]) ?>
 
 </div>

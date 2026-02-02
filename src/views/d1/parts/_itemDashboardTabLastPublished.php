@@ -48,7 +48,7 @@ if (!empty($model)) {
             $oraPubblicazione = DateUtility::getHour($model['nav']['publish_from'], 'php:H:i');
 
             if ($dataPubblicazione == $today) {
-                $dataOraPubblicazione =  '<strong>' . Module::txt('OGGI') . '</strong>';
+                $dataOraPubblicazione =  '<strong>' . Module::txt('OGGI') . '</strong>' . ' ' . Module::txt('alle') . ' <strong>' . $oraPubblicazione . '</strong>';
             } else {
                 $dataOraPubblicazione = Module::txt('il') . ' ' . '<strong>' . $dataPubblicazione . '</strong>' . ' ' . Module::txt('alle') . ' <strong>' . $oraPubblicazione . '</strong>';
             }

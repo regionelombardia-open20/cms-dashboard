@@ -4,16 +4,21 @@ namespace open20\cms\dashboard\models;
 
 use Yii;
 use yii\helpers\ArrayHelper;
+use yii\validators\EachValidator;
 
 /**
  * This is the model class for table "cms_dash_sidebar_item".
  */
 class CmsDashSidebarItem extends \open20\cms\dashboard\models\base\CmsDashSidebarItem
 {
+    const TYPE_WHITELIST = 0;
+    const TYPE_BLACKLIST = 1;
+    public $roles_mm;
+
     public function representingColumn()
     {
         return [
-//inserire il campo o i campi rappresentativi del modulo
+            //inserire il campo o i campi rappresentativi del modulo
         ];
     }
 
@@ -37,6 +42,7 @@ class CmsDashSidebarItem extends \open20\cms\dashboard\models\base\CmsDashSideba
     public function rules()
     {
         return ArrayHelper::merge(parent::rules(), [
+            ['roles_mm', EachValidator::class, 'rule' => ['string']]
         ]);
     }
 
@@ -46,6 +52,7 @@ class CmsDashSidebarItem extends \open20\cms\dashboard\models\base\CmsDashSideba
             ArrayHelper::merge(
                 parent::attributeLabels(),
                 [
+                    'roles_mm' => Yii::t('amosdashboards', 'Roles'),
                 ]);
     }
 
@@ -170,5 +177,52 @@ class CmsDashSidebarItem extends \open20\cms\dashboard\models\base\CmsDashSideba
         $currentUrl = \yii\helpers\Url::current();
 
         return (strpos($currentUrl, $this->link) !== false) ? 'active' : '';
+    }
+
+    public function afterFind()
+    {
+        $this->roles_mm = ArrayHelper::map(CmsDashSidebarItemRolesMm::find()->andWhere(['id_item' => $this->id])->asArray()->all(), 'role', 'role');
+        return parent::afterFind();
+    }
+
+    public function afterSave($insert, $changedAttributes)
+    {
+        parent::afterSave($insert, $changedAttributes);
+        $this->updateRolesMm();
+    }
+
+    /**
+     * @return void
+     */
+    public function updateRolesMm()
+    {
+        $this->deleteRolesMm();
+        $this->createRolesMm();
+    }
+
+    /**
+     * @return void
+     */
+    public function deleteRolesMm()
+    {
+        $roles = CmsDashSidebarItemRolesMm::find()->andWhere(['id_item' => $this->id])->all();
+        foreach ($roles as $role) {
+            $role->delete();
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function createRolesMm()
+    {
+        if (!empty($this->roles_mm)) {
+            foreach ($this->roles_mm as $value) {
+                $rolesMm = new CmsDashSidebarItemRolesMm();
+                $rolesMm->id_item = $this->id;
+                $rolesMm->role = $value;
+                $rolesMm->save();
+            }
+        }
     }
 }

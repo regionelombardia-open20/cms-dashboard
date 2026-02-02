@@ -1,11 +1,11 @@
 <?php
 
-
 use open20\amos\core\views\AmosGridView;
 use open20\cms\dashboard\utilities\Utility;
 use open20\cms\dashboard\Module;
 use open20\amos\core\helpers\Html;
 use app\modules\cms\models\NavItem;
+use luya\admin\models\User;
 
 $this->title = Module::txt('Modelli');
 
@@ -16,7 +16,6 @@ $this->registerJs('
         ', \yii\web\View::POS_READY);
 
 $canPublish = \Yii::$app->user->can('CMS_PUBLISH_PAGE');
-
 ?>
 
 <?=
@@ -49,12 +48,38 @@ $this->render('_search', [
                 'width' => '5%',
             ],
             [
+                'width' => '45%',
                 'attribute' => 'title',
                 'label' => Module::txt('Modelli di pagina'),
                 'value' => function ($model) {
                     return '<strong>' . $model['title'] . '</strong>';
                 },
                 'format' => 'html',
+            ],
+            [
+                'width' => '15%',
+                'attribute' => 'update_user_id',
+                'label' => Module::txt('Ultima modifica'),
+                'value' => function ($model) {
+                    if (empty($model['update_user_id'])) {
+                        return User::findOne($model['create_user_id'])->firstname
+                                . ' '
+                                . User::findOne($model['create_user_id'])->lastname;
+                    }
+                    return User::findOne($model['update_user_id'])->firstname
+                    . ' '
+                    . User::findOne($model['update_user_id'])->lastname;
+                }
+            ],
+            [
+                'width' => '15%',
+                'attribute' => 'timestamp_update',
+                'label' => Module::txt('Data ultima modifica'),
+                'value' => function ($model) {
+                    if (empty($model['timestamp_update']))
+                        return \Yii::$app->formatter->asDatetime($model['timestamp_create'], 'php:d/m/Y H:i');
+                    return \Yii::$app->formatter->asDatetime($model['timestamp_update'], 'php:d/m/Y H:i');
+                }
             ],
             [
                 'class' => 'open20\amos\core\views\grid\ActionColumn',

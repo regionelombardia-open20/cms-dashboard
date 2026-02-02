@@ -35,5 +35,8 @@ return [
     '#beforeActionCtaLogin' => 'Accedi',
     '#beforeActionCtaLoginTitle' => 'Clicca qui per accedere o registrarti alla piattaforma {platformName}',
     '#beforeActionSubtitleSectionLogged' => 'Pannello di configurazione della sidebar redazionale: gestisci le azioni e l\'ordine degli elementi che la compongono',
-    '#deleteConfirm' => 'Sei sicuro di voler cancellare questo elemento?'
+    '#deleteConfirm' => 'Sei sicuro di voler cancellare questo elemento?',
+    'Type of list' => 'Tipologia di lista',
+    'Activate List' => 'Attiva lista dei ruoli',
+    'Roles' => 'Ruoli'
 ];

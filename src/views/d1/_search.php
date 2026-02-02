@@ -78,7 +78,10 @@ $enableAutoOpenSearchPanel = false;
                 ],
             ]
         )->label(Module::txt('Aggiornato da'));
+
+        echo \yii\helpers\Html::hiddenInput('container', \Yii::$app->request->get('container'));
         ?>
+
         </div>
         <div class="col-xs-12">
             <div class="pull-right">

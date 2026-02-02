@@ -24,10 +24,41 @@ class Module extends AmosModule implements BreadcrumbInterface {
     public $defaultContainerId;
 
     /**
+     * 
+     * @var type
+     */
+    public $enableContainerFilterForEditor = true;
+
+    /**
      *  Elenco dei record che non permettono modifiche nei link (nemmeno dall'admin), nella sidebar redattore
      * @var int[]
      */
     public $sidebarItemBlacklist = [2, 10]; // Dashboard, Gestione portali
+
+    /**
+     * 
+     * @var bool $enableProfile
+     */
+    public $enableProfile = false;
+
+    /**
+     * @var array[] $mapPermissionContainer
+     */
+    public $mapPermissionContainer = [
+        'REDATTORECMS' => ['default', 'footer'],
+        'CAPOREDATTORECMS' => ['default', 'footer', 'system'],
+    ];
+
+    /**
+     * @var int $maxCmsPageLevel
+     */
+    public $maxCmsPageLevel = 5;
+
+    /**
+     * @var int $defaultTitlePageLength
+     */
+    public $defaultTitlePageLength = 175;
+
     /**
      * 
      * @return string
@@ -103,8 +134,7 @@ class Module extends AmosModule implements BreadcrumbInterface {
     /**
      * @return array
      */
-    public function getIndexActions()
-    {
+    public function getIndexActions() {
         return [
             'dashboards/cms-dash-sidebar-item/index',
         ];
@@ -113,8 +143,7 @@ class Module extends AmosModule implements BreadcrumbInterface {
     /**
      * @return array
      */
-    public function getControllerNames()
-    {
+    public function getControllerNames() {
         $names = [
             'cms-dash-sidebar-item' => self::t('amosdashboards', "Sidebar"),
         ];

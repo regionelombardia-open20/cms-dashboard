@@ -22,10 +22,11 @@ $this->params['breadcrumbs'][] = Yii::t('amoscore', 'Aggiorna');
 <div class="cms-dash-sidebar-item-update">
 
     <?= $this->render('_form', [
-    'model' => $model,
-    'fid' => NULL,
-    'dataField' => NULL,
-    'dataEntity' => NULL,
+        'model' => $model,
+        'fid' => NULL,
+        'dataField' => NULL,
+        'dataEntity' => NULL,
+        'roles' => $roles
     ]) ?>
 
 </div>
