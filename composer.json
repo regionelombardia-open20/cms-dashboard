@@ -1,5 +1,6 @@
 {
     "name": "open20/cms-dashboard",
+    "license": "GPL-3.0-or-later",
     "description": "Dashboard for CMS",
     "keywords": [
         "amos",
